@@ -6,6 +6,9 @@
 #endif
 using namespace std;
 
+enum Direction { UP, DOWN, LEFT, RIGHT };
+int speed = 500;
+
 void ShowsCursor(bool visible) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_CURSOR_INFO info;
@@ -57,40 +60,91 @@ int PrintMaze(char maze[15][55]) {
     return 0;
 }
 
-void MovePacman(char maze[15][55], int& x, int& y) {
-    char input;
-    bool running = true;
-    ShowsCursor(false);
-
-    while (running) {
+void KeepMoving(Direction dir, char maze[15][55], int& x, int& y, char character, string color) {
+    bool isMoving = true;
+    
+    while (isMoving){
         if (_kbhit()) {
-            input = _getch();
+            char input = _getch();
 
             SetPosition(x, y);
             cout << " ";  
 
             switch (input) {
-                case 72:
-                    if (maze[x-1][y] == ' ' || maze[x-1][y] == '.') x--;
+                case 72: // Arriba
+                    dir = UP;
                     break;
-                case 80:
-                    if (maze[x+1][y] == ' ' || maze[x+1][y] == '.') x++;
+                case 80: // Abajo
+                    dir = DOWN;
                     break;
-                case 75:
-                    if (maze[x][y-1] == ' ' || maze[x][y-1] == '.') y--;
+                case 75: // Izquierda
+                    dir = LEFT;
                     break;
-                case 77:
-                    if (maze[x][y+1] == ' ' || maze[x][y+1] == '.') y++;
+                case 77: // Derecha
+                    dir = RIGHT;
+                    break;
+                case 'q':
+                    isMoving = false;
                     break;
             }
 
             SetPosition(x, y);
-            cout << "\033[33m" << 'C' << "\033[0m";
+            cout << color << character << "\033[0m";
+        }
 
-            if(input == 'q') {
-                SetPosition(15,0);
-                running = false;
+        SetPosition(x, y);
+        cout << " ";  
+
+        switch (dir) {
+            case UP:
+                if (maze[x-1][y] == ' ' || maze[x-1][y] == '.') {
+                    x--;
+                } else {
+                    isMoving = false;
+                }
                 break;
+            case DOWN:
+                if (maze[x+1][y] == ' ' || maze[x+1][y] == '.') {
+                    x++;
+                } else {
+                    isMoving = false;
+                }
+                break;
+            case LEFT:
+                if (maze[x][y-1] == ' ' || maze[x][y-1] == '.') {
+                    y--;
+                } else {
+                    isMoving = false;
+                }
+                break;
+            case RIGHT:
+                if (maze[x][y+1] == ' ' || maze[x][y+1] == '.') {
+                    y++;
+                } else {
+                    isMoving = false;
+                }
+                break;
+        }
+
+        SetPosition(x, y);
+        cout << color << character << "\033[0m";
+        Sleep(speed);  
+    }    
+}
+
+void Move(char maze[15][55], int& x, int& y, char character, string color, Direction initialDirection) {
+    Direction dir = initialDirection;
+    bool running = true;
+
+    ShowsCursor(false);
+
+    while (running) {
+        KeepMoving(dir, maze, x, y, character, color);
+        if (_kbhit()) {
+            char input = _getch();
+            if (input == 'q') {
+                SetPosition(15, 0);
+                running = false;
             }
         }
     }
@@ -118,7 +172,7 @@ int main() {
 
     system("cls");
     PrintMaze(maze);    
-    MovePacman(maze, x, y);  
+    Move(maze, x, y, 'C', "\033[33m", RIGHT); 
 
     return 0;
 }
