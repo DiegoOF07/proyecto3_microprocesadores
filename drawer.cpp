@@ -25,7 +25,7 @@ void SetPosition(int16_t X, int16_t Y) {
     SetConsoleCursorPosition(Screen, Position);
 }
 
-int PrintMaze(char maze[15][55]) {
+void PrintMaze(char (&maze)[15][55]) {
     // Colores para los &: rojo, rosado, anaranjado, celeste
     string colors[] = {"\033[31m", "\033[35m", "\033[32m", "\033[36m"};
 
@@ -50,6 +50,7 @@ int PrintMaze(char maze[15][55]) {
                 if (j % 2 == 1 || i == 7) {
                     cout << "\033[37m" << ' ' << "\033[0m";  // Dejar espacio en filas impares
                 } else {
+                    maze[i][j] = '.'; 
                     cout << "\033[37m" << '.' << "\033[0m";  // Blanco para las 'o'
                 }
             } else {
@@ -59,15 +60,15 @@ int PrintMaze(char maze[15][55]) {
         }
         cout << std::endl; // Nueva línea después de cada fila
     }
-    return 0;
 }
+
 
 void ghostMoving(char maze[15][55], int& x, int& y, char character, string color) {
     ShowsCursor(false);
     Direction dir = UP;
     char previousChar = ' ';
     int n = 0;
-    while (n<20) {
+    while (n<50) {
         
         SetPosition(x, y);
         cout << previousChar;
