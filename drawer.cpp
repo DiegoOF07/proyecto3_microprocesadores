@@ -8,6 +8,8 @@ using namespace std;
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
 int speed = 500;
+bool isGhost = false;
+bool isCoin = false;
 
 void ShowsCursor(bool visible) {
     HANDLE consoleHandle = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -59,6 +61,59 @@ int PrintMaze(char maze[15][55]) {
     }
     return 0;
 }
+
+void ghostMoving(char maze[15][55], int& x, int& y, char character, string color) {
+    ShowsCursor(false);
+    Direction dir = UP;
+    char previousChar = ' ';
+    int n = 0;
+    while (n<20) {
+        
+        SetPosition(x, y);
+        cout << previousChar;
+
+        switch (dir) {
+        case RIGHT:
+            if (maze[x][y + 1] == ' ' || maze[x][y + 1] == '.' || maze[x][y + 1] == '&') {
+                y++;
+                previousChar = maze[x][y]; 
+            } else {
+                dir = UP;
+            }
+            break;
+        case UP:
+            if (maze[x - 1][y] == ' ' || maze[x - 1][y] == '.' || maze[x - 1][y] == '&') {
+                x--;
+                previousChar = maze[x][y]; 
+            } else {
+                dir = LEFT;
+            }
+            break;
+        case LEFT:
+            if (maze[x][y - 1] == ' ' || maze[x][y - 1] == '.' || maze[x][y - 1] == '&') {
+                y--;
+                previousChar = maze[x][y]; 
+            } else {
+                dir = DOWN;
+            }
+            break;
+        case DOWN:
+            if (maze[x + 1][y] == ' ' || maze[x + 1][y] == '.' || maze[x + 1][y] == '&') {
+                x++;
+                previousChar = maze[x][y];
+            } else {
+                dir = RIGHT;
+            }
+            break;
+        }
+        SetPosition(x, y);
+        cout << color << character << "\033[0m";
+
+        Sleep(150);
+        n++;
+    }
+}
+
 
 void KeepMoving(Direction dir, char maze[15][55], int& x, int& y, char character, string color) {
     bool isMoving = true;
@@ -151,7 +206,7 @@ void Move(char maze[15][55], int& x, int& y, char character, string color, Direc
 }
 
 int main() {
-    int x = 9, y = 24;
+    int x = 9, y = 24, x_ghost1 = 7, x_ghost2 = 7, x_ghost3 = 7, x_ghost4 = 7, y_ghost1 = 21, y_ghost2 = 23, y_ghost3 = 25, y_ghost4 = 27;
     char maze[15][55] = {
         "|###############################################|",
         "|        |              |              |        |",
@@ -171,7 +226,11 @@ int main() {
     };
 
     system("cls");
-    PrintMaze(maze);    
+    PrintMaze(maze);
+    ghostMoving(maze, x_ghost1, y_ghost1, '&', "\033[31m");
+    ghostMoving(maze, x_ghost2, y_ghost2, '&', "\033[35m");
+    ghostMoving(maze, x_ghost3, y_ghost3, '&', "\033[32m");
+    ghostMoving(maze, x_ghost4, y_ghost4, '&', "\033[36m");  
     Move(maze, x, y, 'C', "\033[33m", RIGHT); 
 
     return 0;
