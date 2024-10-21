@@ -1,12 +1,16 @@
 #include <iostream>
 #include <string>
 #include <pthread.h>
-#include <cstdlib> // For rand() and srand()
+#include <cstdlib>
 #include <ctime>
 #include <conio.h>
 #include <windows.h>
 #include <semaphore.h>
+#include <vector>
+#include <algorithm>
 using namespace std;
+
+int playerX = 9, playerY = 24;
 
 enum Direction { UP, DOWN, LEFT, RIGHT };
 
@@ -91,44 +95,52 @@ void* ghostMoving(void* params) {
 
     char previousChar = ' ';
     while (true) {
-        Direction dir = getNextDirection();
+        int targetX = playerX;
+        int targetY = playerY;
 
-        pthread_barrier_wait(&movementBarrier); 
+        std::vector<std::pair<int, int>> directions = {
+            {0, 1},   // Derecha
+            {-1, 0},  // Arriba
+            {0, -1},  // Izquierda
+            {1, 0}    // Abajo
+        };
 
+        std::sort(directions.begin(), directions.end(), [&](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+            int distA = abs((x + a.first) - targetX) + abs((y + a.second) - targetY);
+            int distB = abs((x + b.first) - targetX) + abs((y + b.second) - targetY);
+            return distA < distB;
+        });
+
+        pthread_barrier_wait(&movementBarrier);
         pthread_spin_lock(&mazeLock);
 
         SetPosition(x, y);
         cout << previousChar;
 
         int newX = x, newY = y;
-        switch (dir) {
-            case RIGHT:
-                if ((*maze)[x][y + 1] != '#' && (*maze)[x][y + 1] != '|') {
-                    newY = y + 1;
-                }
+        for (const auto& dir : directions) {
+            int tempX = x + dir.first;
+            int tempY = y + dir.second;
+
+            if ((*maze)[tempX][tempY] != '#' && (*maze)[tempX][tempY] != '|' && (*maze)[tempX][tempY] != '&') {
+                newX = tempX;
+                newY = tempY;
                 break;
-            case UP:
-                if ((*maze)[x - 1][y] != '#' && (*maze)[x - 1][y] != '|') {
-                    newX = x - 1;
-                }
-                break;
-            case LEFT:
-                if ((*maze)[x][y - 1] != '#' && (*maze)[x][y - 1] != '|') {
-                    newY = y - 1;
-                }
-                break;
-            case DOWN:
-                if ((*maze)[x + 1][y] != '#' && (*maze)[x + 1][y] != '|') {
-                    newX = x + 1;
-                }
-                break;
+            }
+        }
+
+        // Verificar colisión con Pac-Man
+        if (newX == playerX && newY == playerY) {
+            SetPosition(16, 0);
+            cout << "\033[31mPerdiste\033[0m" << endl;
+            exit(0); // Termina el juego
         }
 
         if ((*maze)[newX][newY] != '&') {
             SetPosition(x, y);
             (*maze)[x][y] = previousChar; 
             previousChar = (*maze)[newX][newY]; 
-            (*maze)[newX][newY] = '&'; 
+            (*maze)[newX][newY] = '&';
 
             x = newX;
             y = newY;
@@ -138,9 +150,8 @@ void* ghostMoving(void* params) {
         cout << color << character << "\033[0m";
 
         pthread_spin_unlock(&mazeLock);
-
-        pthread_barrier_wait(&movementBarrier);  
-        Sleep(150);
+        pthread_barrier_wait(&movementBarrier);
+        Sleep(50);
     }
     return nullptr;
 }
@@ -175,7 +186,7 @@ void* Move(void* params) {
             case 77: 
                 dir = RIGHT;
                 break;
-            case 'q': // Quit
+            case 'q': 
                 SetPosition(15, 0);
                 return nullptr;
             }
@@ -206,12 +217,13 @@ void* Move(void* params) {
             }
 
             SetPosition(x, y);
+            playerX = x;
+            playerY = y;
             cout << color << character << "\033[0m";
             pthread_spin_unlock(&mazeLock);
         }
 
-        pthread_barrier_wait(&movementBarrier); 
-        pthread_barrier_wait(&movementBarrier); 
+        pthread_barrier_wait(&movementBarrier);  
         Sleep(50);
     }
     return nullptr;
@@ -221,7 +233,6 @@ int main() {
     pthread_barrier_init(&movementBarrier, nullptr, 5); 
     pthread_spin_init(&mazeLock, 0);
 
-    int x = 9, y = 24;
     int x_ghost1 = 7, y_ghost1 = 21;
     int x_ghost2 = 7, y_ghost2 = 23;
     int x_ghost3 = 7, y_ghost3 = 25;
@@ -237,7 +248,7 @@ int main() {
         "| | |####| |####| |#|       |#| |####| |####| | |",
         "                  |  & & & &  |                  ",
         "| | |####| |####| |###########| |####| |####| | |",
-        "|          |            C            |          |",
+        "|          |                         |          |",
         "| | |####| |####| |###########| |####| |####| | |",
         "| |                                           | |",
         "| |####| | |##########| | |##########| | |####| |",
@@ -261,7 +272,7 @@ int main() {
     }
 
     pthread_t playerThread;
-    PlayerParams player = {&maze, x, y, 'C', "\033[33m", RIGHT};
+    PlayerParams player = {&maze, playerX, playerY, 'C', "\033[33m", RIGHT};
     pthread_create(&playerThread, nullptr, Move, &player);
 
     pthread_join(playerThread, nullptr);
