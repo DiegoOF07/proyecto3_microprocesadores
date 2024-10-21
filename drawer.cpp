@@ -77,6 +77,8 @@ void PrintMaze(char (&maze)[15][55]) {
                 ampersandCount++;
             } else if (currentChar == 'C') {
                 cout << "\033[33m" << currentChar << "\033[0m";
+            } else if (currentChar == '.') {
+                cout << "\033[37m" << currentChar << "\033[0m";
             } else {
                 cout << currentChar;
             }
@@ -84,6 +86,7 @@ void PrintMaze(char (&maze)[15][55]) {
         cout << std::endl;
     }
 }
+
 
 void* ghostMoving(void* params) {
     GhostParams* ghost = (GhostParams*)params;
@@ -99,10 +102,10 @@ void* ghostMoving(void* params) {
         int targetY = playerY;
 
         std::vector<std::pair<int, int>> directions = {
-            {0, 1},   // Derecha
-            {-1, 0},  // Arriba
-            {0, -1},  // Izquierda
-            {1, 0}    // Abajo
+            {0, 1},
+            {-1, 0},
+            {0, -1},
+            {1, 0}
         };
 
         std::sort(directions.begin(), directions.end(), [&](const std::pair<int, int>& a, const std::pair<int, int>& b) {
@@ -129,11 +132,10 @@ void* ghostMoving(void* params) {
             }
         }
 
-        // Verificar colisión con Pac-Man
         if (newX == playerX && newY == playerY) {
             SetPosition(16, 0);
             cout << "\033[31mPerdiste\033[0m" << endl;
-            exit(0); // Termina el juego
+            exit(0);
         }
 
         if ((*maze)[newX][newY] != '&') {
@@ -155,6 +157,7 @@ void* ghostMoving(void* params) {
     }
     return nullptr;
 }
+int remainingPoints = 0;
 
 void* Move(void* params) {
     PlayerParams* player = (PlayerParams*)params;
@@ -164,70 +167,115 @@ void* Move(void* params) {
     char character = player->character;
     string color = player->color;
     Direction dir = player->initialDirection;
+    Direction nextDir = dir; 
 
     ShowsCursor(false);
+
+    for (int i = 0; i < 15; i++) {
+        for (int j = 0; j < 55; j++) {
+            if ((*maze)[i][j] == '.') {
+                remainingPoints++;
+            }
+        }
+    }
 
     while (true) {
         if (_kbhit()) {
             char input = _getch();
-            SetPosition(x, y);
-            cout << " ";
-
             switch (input) {
-            case 72: 
-                dir = UP;
-                break;
-            case 80: 
-                dir = DOWN;
-                break;
-            case 75: 
-                dir = LEFT;
-                break;
-            case 77: 
-                dir = RIGHT;
-                break;
-            case 'q': 
-                SetPosition(15, 0);
-                return nullptr;
+                case 72: 
+                    nextDir = UP;
+                    break;
+                case 80: 
+                    nextDir = DOWN;
+                    break;
+                case 75: 
+                    nextDir = LEFT;
+                    break;
+                case 77: 
+                    nextDir = RIGHT;
+                    break;
+                case 'q':
+                    SetPosition(15, 0);
+                    return nullptr;
             }
-
-            pthread_spin_lock(&mazeLock);
-
-            switch (dir) {
-                case UP:
-                    if ((*maze)[x - 1][y] == ' ' || (*maze)[x - 1][y] == '.') {
-                        x--;
-                    }
-                    break;
-                case DOWN:
-                    if ((*maze)[x + 1][y] == ' ' || (*maze)[x + 1][y] == '.') {
-                        x++;
-                    }
-                    break;
-                case LEFT:
-                    if ((*maze)[x][y - 1] == ' ' || (*maze)[x][y - 1] == '.') {
-                        y--;
-                    }
-                    break;
-                case RIGHT:
-                    if ((*maze)[x][y + 1] == ' ' || (*maze)[x][y + 1] == '.') {
-                        y++;
-                    }
-                    break;
-            }
-
-            SetPosition(x, y);
-            playerX = x;
-            playerY = y;
-            cout << color << character << "\033[0m";
-            pthread_spin_unlock(&mazeLock);
         }
 
-        pthread_barrier_wait(&movementBarrier);  
-        Sleep(50);
+        pthread_spin_lock(&mazeLock);
+
+        switch (nextDir) {
+            case UP:
+                if ((*maze)[x - 1][y] == ' ' || (*maze)[x - 1][y] == '.') {
+                    dir = UP;
+                }
+                break;
+            case DOWN:
+                if ((*maze)[x + 1][y] == ' ' || (*maze)[x + 1][y] == '.') {
+                    dir = DOWN;
+                }
+                break;
+            case LEFT:
+                if ((*maze)[x][y - 1] == ' ' || (*maze)[x][y - 1] == '.') {
+                    dir = LEFT;
+                }
+                break;
+            case RIGHT:
+                if ((*maze)[x][y + 1] == ' ' || (*maze)[x][y + 1] == '.') {
+                    dir = RIGHT;
+                }
+                break;
+        }
+
+        SetPosition(x, y);
+        cout << " ";
+
+        switch (dir) {
+            case UP:
+                if ((*maze)[x - 1][y] == ' ' || (*maze)[x - 1][y] == '.') {
+                    x--;
+                }
+                break;
+            case DOWN:
+                if ((*maze)[x + 1][y] == ' ' || (*maze)[x + 1][y] == '.') {
+                    x++;
+                }
+                break;
+            case LEFT:
+                if ((*maze)[x][y - 1] == ' ' || (*maze)[x][y - 1] == '.') {
+                    y--;
+                }
+                break;
+            case RIGHT:
+                if ((*maze)[x][y + 1] == ' ' || (*maze)[x][y + 1] == '.') {
+                    y++;
+                }
+                break;
+        }
+
+        if ((*maze)[x][y] == '.') {
+            remainingPoints--;
+        }
+
+        SetPosition(x, y);
+        playerX = x;
+        playerY = y;
+        cout << color << character << "\033[0m";
+
+        if (remainingPoints == 0) {
+            SetPosition(16, 0);
+            cout << "\033[32mGanaste!\033[0m" << endl;
+            exit(0);
+        }
+
+        (*maze)[x][y] = ' ';
+        pthread_spin_unlock(&mazeLock);
+
+        pthread_barrier_wait(&movementBarrier);
+        Sleep(200);
     }
     return nullptr;
 }
+
 
 int main() {
     pthread_barrier_init(&movementBarrier, nullptr, 5); 
@@ -240,19 +288,19 @@ int main() {
 
     char maze[15][55] = {
         "|###############################################|",
-        "|        |              |              |        |",
+        "| ...... |  ..........  |  ..........  | .....  |",
         "| |####| | |##########| | |##########| | |####| |",
-        "| |                                           | |",
+        "| | ......................................... | |",
         "| | |####| |####| |###########| |####| |####| | |",
-        "|                                             | |",
+        "|      .........                .........     | |",
         "| | |####| |####| |#|       |#| |####| |####| | |",
-        "                  |  & & & &  |                  ",
+        "|    ...........  |  & & & &  |  ...........    |",
         "| | |####| |####| |###########| |####| |####| | |",
-        "|          |                         |          |",
+        "|      .............        .............       |",
         "| | |####| |####| |###########| |####| |####| | |",
-        "| |                                           | |",
+        "| |...........................................| |",
         "| |####| | |##########| | |##########| | |####| |",
-        "|        |              |              |        |",
+        "| ...... | ............ | ............ | ...... |",
         "|###############################################|"
     };
 
